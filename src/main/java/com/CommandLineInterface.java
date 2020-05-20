@@ -17,7 +17,7 @@ public class CommandLineInterface {
         CommandLineParser parser = new DefaultParser();
         CommandLine cmd;
         try {
-            cmd = parser.parse( options, args);
+            cmd = parser.parse(options, args);
         } catch (ParseException e) {
             // print help
             return;
@@ -27,8 +27,9 @@ public class CommandLineInterface {
         String topic = cmd.getOptionValue("t", "sd-message-topic");
         String ip = cmd.getOptionValue("a", "127.0.0.1");
         String port = cmd.getOptionValue("p", "5672");
-
         int iip = IpUtils.ipToInt(ip);
         int iport = Integer.parseInt(port);
+        Sender sender = new Sender(topic, user, ip, Integer.parseInt(port));
+        new Thread(sender).start();
     }
 }
