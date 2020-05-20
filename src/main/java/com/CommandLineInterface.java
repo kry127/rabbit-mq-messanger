@@ -1,8 +1,6 @@
-import org.apache.commons.cli.*;
+package com;
 
-import com.rabbitmq.client.ConnectionFactory;
-import com.rabbitmq.client.Connection;
-import com.rabbitmq.client.Channel;
+import org.apache.commons.cli.*;
 
 public class CommandLineInterface {
 
@@ -26,8 +24,9 @@ public class CommandLineInterface {
         }
 
         String user = cmd.getOptionValue("u", "anonymous");
+        String topic = cmd.getOptionValue("t", "sd-message-topic");
         String ip = cmd.getOptionValue("a", "127.0.0.1");
-        String port = cmd.getOptionValue("p", "8980");
+        String port = cmd.getOptionValue("p", "5672");
 
         int iip = IpUtils.ipToInt(ip);
         int iport = Integer.parseInt(port);
