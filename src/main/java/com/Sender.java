@@ -42,7 +42,7 @@ public class Sender implements Runnable {
                     channel.queueDeclare(queue, false, false, false, null);
                     Message message = new Message(msg, author, ZonedDateTime.now());
                     channel.basicPublish("", queue, null, message.getBytes());
-                    System.out.println(" [x] Sent '" + message + "'");
+                    System.out.println(message);
                 } catch (TimeoutException e) {
                     e.printStackTrace();
                 } catch (IOException e) {

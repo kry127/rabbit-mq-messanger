@@ -35,4 +35,9 @@ public class Message implements Serializable {
         out.writeObject(this);
         return arr.toByteArray();
     }
+
+    @Override
+    public String toString() {
+        return " " + author + " [" + dateTime + "]: " + message;
+    }
 }
