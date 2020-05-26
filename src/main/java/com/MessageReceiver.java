@@ -2,6 +2,6 @@ package com;
 
 public interface MessageReceiver {
 
-    void receive(Message msg);
+    void receive(String chatId, Message msg);
 
 }
