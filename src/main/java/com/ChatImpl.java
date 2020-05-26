@@ -36,7 +36,7 @@ public class ChatImpl implements com.ifs.Chat {
             channel.queueBind(queueName, chatId, "");
             DeliverCallback deliverCallback = (consumerTag, delivery) -> {
                 try {
-                    receiver.receive(Message.frommBytes(delivery.getBody()));
+                    receiver.receive(chatId, Message.frommBytes(delivery.getBody()));
                 } catch (ClassNotFoundException e) {
                     e.printStackTrace();
                 }
@@ -63,9 +63,12 @@ public class ChatImpl implements com.ifs.Chat {
         factory.setUri("amqp://zavmsusv:llWnY9bP_iVXSdvhuaNd_WJoexursdVi@fish.rmq.cloudamqp.com/zavmsusv");
         factory.setRequestedHeartbeat(30);
         factory.setConnectionTimeout(30000);
-        ChatImpl chatImpl = new ChatImpl("abc", (r) -> System.out.println(r), factory,executorService);
+        MessageReceiverImpl receiver = new MessageReceiverImpl((c, r) -> {});
+        ChatImpl chatImpl = new ChatImpl("abc", receiver, factory, executorService);
         chatImpl.send(new Message("test", "ya", ZonedDateTime.now()));
-        ChatImpl chatImpl1 = new ChatImpl("abc", (r) -> System.out.println(r), factory,executorService);
+        ChatImpl chatImpl1 = new ChatImpl("abc2", receiver, factory, executorService);
         chatImpl1.send(new Message("test2", "ne ya", ZonedDateTime.now()));
+        Thread.sleep(3000);
+        receiver.debugPrint();
     }
 }
