@@ -1,11 +1,8 @@
 package com.gui;
 
-import com.Chat;
-import com.Message;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import javafx.application.Application;
-import javafx.beans.binding.Bindings;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
@@ -20,9 +17,6 @@ import javafx.scene.text.Text;
 import javafx.stage.Stage;
 
 import java.io.IOException;
-import java.net.ConnectException;
-import java.text.ParseException;
-import java.time.ZonedDateTime;
 import java.util.concurrent.TimeoutException;
 
 public class GUI extends Application {
@@ -142,6 +136,7 @@ public class GUI extends Application {
                     portBox.setBackground(errorBackground);
                 } else {
                     // automatically hides current stage!
+                    loginStage.hide();
                     messagingWindow.show();
                 }
             }
@@ -167,26 +162,26 @@ public class GUI extends Application {
          * Describes established connection
          */
         private ConnectionFactory factory = new ConnectionFactory();
-        private Connection connection;
+        private boolean connected;
 
 
         private MainMessagingWindow(String username, String host, Integer port) {
             factory.setUsername(username);
             factory.setHost(host);
             factory.setPort(port);
+            connected = false;
             try {
-                connection = factory.newConnection();
+                Connection connection = factory.newConnection();
+                connected = true;
+                connection.close();
             } catch (IOException | TimeoutException ex) {
                 return; // connection not established
             }
-
-            GUI.this.loginStage.hide();
-
             initLayout();
         }
 
         private boolean checkConnection() {
-            return connection != null;
+            return connected;
         }
 
         private void initLayout() {
@@ -217,11 +212,6 @@ public class GUI extends Application {
 
             super.setOnCloseRequest(ev->{
                 GUI.this.loginStage.show();
-                try {
-                    connection.close();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
             });
         }
     }
