@@ -36,7 +36,7 @@ public class Message implements Serializable {
     public String toString() {
         return " " + author + " [" + dateTime + "]: " + message;
     }
-    
+
     public static Message frommBytes(byte[] bytes) throws IOException, ClassNotFoundException {
         ByteArrayInputStream arr = new ByteArrayInputStream(bytes);
         ObjectInputStream inputStream = new ObjectInputStream(arr);
