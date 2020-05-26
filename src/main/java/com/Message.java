@@ -1,9 +1,6 @@
 package com;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.ObjectOutputStream;
-import java.io.Serializable;
+import java.io.*;
 import java.time.ZonedDateTime;
 
 public class Message implements Serializable {
@@ -36,8 +33,13 @@ public class Message implements Serializable {
         return arr.toByteArray();
     }
 
-    @Override
     public String toString() {
         return " " + author + " [" + dateTime + "]: " + message;
+    }
+    
+    public static Message frommBytes(byte[] bytes) throws IOException, ClassNotFoundException {
+        ByteArrayInputStream arr = new ByteArrayInputStream(bytes);
+        ObjectInputStream inputStream = new ObjectInputStream(arr);
+        return (Message) inputStream.readObject();
     }
 }

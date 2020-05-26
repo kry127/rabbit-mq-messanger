@@ -29,7 +29,5 @@ public class CommandLineInterface {
         String port = cmd.getOptionValue("p", "5672");
         int iip = IpUtils.ipToInt(ip);
         int iport = Integer.parseInt(port);
-        Sender sender = new Sender(topic, user, ip, Integer.parseInt(port));
-        new Thread(sender).start();
     }
 }
