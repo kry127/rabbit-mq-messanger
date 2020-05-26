@@ -2,6 +2,7 @@ package com.gui;
 
 import com.Chat;
 import com.Message;
+import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import javafx.application.Application;
 import javafx.beans.binding.Bindings;
@@ -37,15 +38,10 @@ public class GUI extends Application {
         launch(args);
     }
 
-    /**
-     * This method is calling when all inputs were specified by the user
-     */
-    private void initializeMessaging(String username, String host, Integer port)  {
-        ConnectionFactory factory = new ConnectionFactory();
-        factory.setHost(host);
-        factory.setPort(port);
-        MainMessagingWindow mmw = new MainMessagingWindow(username, host, port);
-        mmw.show();
+//    private void initializeMessaging(String username, String host, Integer port)  {
+//        ConnectionFactory factory = new ConnectionFactory();
+//        factory.setHost(host);
+//        factory.setPort(port);
 //        try {
 //            Chat chat = new Chat("chatid", System.out::println, factory);
 //            chat.send(new Message("test", username, ZonedDateTime.now()));
@@ -53,20 +49,7 @@ public class GUI extends Application {
 //        } catch (IOException | TimeoutException | InterruptedException ex) {
 //
 //        }
-    }
-
-    private boolean checkConnection(String username, String host, Integer port) {
-        ConnectionFactory factory = new ConnectionFactory();
-        factory.setHost(host);
-        factory.setPort(port);
-
-        try {
-            factory.newConnection();
-        } catch (IOException | TimeoutException ex) {
-            return false;
-        }
-        return true;
-    }
+//    }
 
     @Override
     public void start(Stage primaryStage) {
@@ -150,13 +133,16 @@ public class GUI extends Application {
                 userTextField.setBackground(normalBackground);
             }
 
+
+            MainMessagingWindow messagingWindow = new MainMessagingWindow(username, host, portInt);
             if (correct) {
-                boolean connected = checkConnection(username, host, portInt);
+                boolean connected = messagingWindow.checkConnection();
                 if (!connected) {
                     hostBox.setBackground(errorBackground);
                     portBox.setBackground(errorBackground);
                 } else {
-                    initializeMessaging(username, host, portInt);
+                    // automatically hides current stage!
+                    messagingWindow.show();
                 }
             }
 
@@ -181,16 +167,26 @@ public class GUI extends Application {
          * Describes established connection
          */
         private ConnectionFactory factory = new ConnectionFactory();
+        private Connection connection;
 
 
         private MainMessagingWindow(String username, String host, Integer port) {
             factory.setUsername(username);
             factory.setHost(host);
             factory.setPort(port);
+            try {
+                connection = factory.newConnection();
+            } catch (IOException | TimeoutException ex) {
+                return; // connection not established
+            }
 
             GUI.this.loginStage.hide();
 
             initLayout();
+        }
+
+        private boolean checkConnection() {
+            return connection != null;
         }
 
         private void initLayout() {
@@ -207,7 +203,7 @@ public class GUI extends Application {
             super.setScene(scene);
 
             // add text
-            Text scenetitle = new Text("Welcome to godlike SD chad");
+            Text scenetitle = new Text("Select chat");
             scenetitle.setFont(Font.font("Tahoma", FontWeight.NORMAL, 20));
             grid.add(scenetitle, 0, 0, 2, 1);
 
@@ -221,6 +217,11 @@ public class GUI extends Application {
 
             super.setOnCloseRequest(ev->{
                 GUI.this.loginStage.show();
+                try {
+                    connection.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
             });
         }
     }
