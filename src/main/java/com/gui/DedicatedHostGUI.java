@@ -9,6 +9,7 @@ import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
+import javafx.scene.input.KeyCode;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
@@ -16,6 +17,7 @@ import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
 import javafx.stage.Stage;
 
+import java.awt.event.KeyEvent;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.security.KeyManagementException;
@@ -39,6 +41,9 @@ public class DedicatedHostGUI extends Application {
     private final String RABBITMQ_AUTHENTICATION_USERNAME = "guest";
     private final String CONNECTION_URI =
         "amqp://zavmsusv:llWnY9bP_iVXSdvhuaNd_WJoexursdVi@fish.rmq.cloudamqp.com/zavmsusv";
+    private TextArea outputTextArea;
+    private TextArea inputTextArea;
+    private TextField usernameField;
 
     public DedicatedHostGUI() throws NoSuchAlgorithmException, KeyManagementException, URISyntaxException {
         factory.setUsername(RABBITMQ_AUTHENTICATION_USERNAME); // not provided username!!
@@ -62,6 +67,17 @@ public class DedicatedHostGUI extends Application {
         return connected;
     }
 
+    private void submitText() {
+
+        String messageText = inputTextArea.getText();
+        String userName = usernameField.getText();
+
+        // do your thing...
+
+        // clear text
+        inputTextArea.setText("");
+    }
+
     @Override
     public void start(Stage primaryStage) {
         primaryStage.setTitle("SD chat [free licence]");
@@ -79,11 +95,11 @@ public class DedicatedHostGUI extends Application {
         Label userName = new Label("User name:");
         userNameBox.getChildren().add(userName);
 
-        TextField userTextField = new TextField("Timofey Bryksin");
-        userTextField.setBackground(normalBackground);
+        usernameField = new TextField("Timofey Bryksin");
+        usernameField.setBackground(normalBackground);
 
-        userNameBox.getChildren().add(userTextField);
-        HBox.setHgrow(userTextField, Priority.ALWAYS);
+        userNameBox.getChildren().add(usernameField);
+        HBox.setHgrow(usernameField, Priority.ALWAYS);
 
         // 2. vBox consists of hBoxChatAndMsg
 
@@ -101,13 +117,27 @@ public class DedicatedHostGUI extends Application {
             children.add(new Label("Topic " + (i + 1)));
         }
         ScrollPane sp = new ScrollPane(scrollableTopics);
+        sp.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
         hBoxChatAndMsg.getChildren().add(sp);
 
-        // 2.2 add messaging part
+        // 2.2 add messaging part -- box for output messages
+        outputTextArea = new TextArea();
+        outputTextArea.setEditable(false);
+        hBoxChatAndMsg.getChildren().add(outputTextArea);
 
+        // 3. finally, add text area with submit button
+        inputTextArea = new TextArea();
+        inputTextArea.setPadding(new Insets(5, 0, 0, 0));
+        inputTextArea.setOnKeyPressed(keyEvent ->  {
+                if (keyEvent.getCode() == KeyCode.ENTER)  {
+                    submitText();
+                }
+        });
+        vBox.getChildren().add(inputTextArea);
 
-        TextArea textArea = new TextArea();
-        hBoxChatAndMsg.getChildren().add(textArea);
+        Button submitButton = new Button("Submit");
+        submitButton.prefWidthProperty().bind(vBox.widthProperty());
+        vBox.getChildren().add(submitButton);
 
 
         // finally, add scene to window
