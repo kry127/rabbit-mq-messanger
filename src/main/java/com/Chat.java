@@ -6,6 +6,7 @@ import com.rabbitmq.client.ConnectionFactory;
 import com.rabbitmq.client.DeliverCallback;
 
 import java.io.IOException;
+import java.time.ZonedDateTime;
 import java.util.concurrent.TimeoutException;
 
 public class Chat {
@@ -18,8 +19,8 @@ public class Chat {
         this.chatId = chatId;
         this.receiver = receiver;
         this.factory = factory;
-        try(Connection connection = factory.newConnection();
-            Channel channel = connection.createChannel()){
+        Connection connection = factory.newConnection();
+            Channel channel = connection.createChannel();
             channel.exchangeDeclare(chatId, "fanout");
             String queueName = channel.queueDeclare().getQueue();
             channel.queueBind(queueName, chatId, "");
@@ -31,13 +32,21 @@ public class Chat {
                 }
             };
             channel.basicConsume(queueName, true, deliverCallback, consumerTag -> { });
-        }
     }
 
     public void send(Message message) throws IOException, TimeoutException {
         try(Connection connection = factory.newConnection();
             Channel channel = connection.createChannel()) {
+            channel.exchangeDeclare(chatId, "fanout");
             channel.basicPublish(chatId, "", null, message.getBytes());
         }
+    }
+
+    public static void main(String[] args) throws IOException, TimeoutException, InterruptedException {
+        ConnectionFactory factory = new ConnectionFactory();
+        factory.setHost("localhost");
+        Chat chat = new Chat("abc", (r) -> System.out.println(r), factory);
+        chat.send(new Message("test", "ya", ZonedDateTime.now()));
+        Thread.sleep(10000);
     }
 }
