@@ -27,7 +27,5 @@ public class CommandLineInterface {
         String topic = cmd.getOptionValue("t", "sd-message-topic");
         String ip = cmd.getOptionValue("a", "127.0.0.1");
         String port = cmd.getOptionValue("p", "5672");
-        int iip = IpUtils.ipToInt(ip);
-        int iport = Integer.parseInt(port);
     }
 }
