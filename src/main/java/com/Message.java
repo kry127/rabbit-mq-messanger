@@ -3,7 +3,7 @@ package com;
 import java.io.*;
 import java.time.ZonedDateTime;
 
-public class Message implements Serializable {
+public class Message implements Serializable, com.ifs.Message {
     private final String message;
     private final String author;
     private final ZonedDateTime dateTime;
