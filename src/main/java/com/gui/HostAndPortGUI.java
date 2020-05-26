@@ -19,7 +19,8 @@ import javafx.stage.Stage;
 import java.io.IOException;
 import java.util.concurrent.TimeoutException;
 
-public class GUI extends Application {
+@Deprecated
+public class HostAndPortGUI extends Application {
 
     private final Background errorBackground = new Background(
             new BackgroundFill(Color.MEDIUMVIOLETRED, new CornerRadii(3.0), Insets.EMPTY));
@@ -164,9 +165,14 @@ public class GUI extends Application {
         private ConnectionFactory factory = new ConnectionFactory();
         private boolean connected;
 
+        String username;
+        private final String RABBITMQ_AUTHENTICATION_USERNAME = "guest";
+
 
         private MainMessagingWindow(String username, String host, Integer port) {
-            factory.setUsername(username);
+            this.username = username;
+
+            factory.setUsername(RABBITMQ_AUTHENTICATION_USERNAME); // not provided username!!
             factory.setHost(host);
             factory.setPort(port);
             connected = false;
@@ -211,7 +217,7 @@ public class GUI extends Application {
             grid.add(userTextField, 1, 1);
 
             super.setOnCloseRequest(ev->{
-                GUI.this.loginStage.show();
+                HostAndPortGUI.this.loginStage.show();
             });
         }
     }
