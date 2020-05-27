@@ -247,6 +247,7 @@ public class DedicatedHostGUI extends Application {
             StringBuilder sb = new StringBuilder();
             for (Message m : history) {
                 sb.append(m);
+                sb.append('\n');
             }
             outputTextArea.setBackground(normalBackground);
             outputTextArea.setText(sb.toString());
