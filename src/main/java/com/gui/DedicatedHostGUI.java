@@ -74,6 +74,7 @@ public class DedicatedHostGUI extends Application {
     private ChatGuiDescriptor currentChatDescriptor; // описание текущего чата
     private VBox scrollableTopics; // контейнер ссылок, закреплённых за дескриптором чата
     private Parent rootScene; // корневой элемент для отображаемого графического интерфейса
+    private Stage primaryStage; // главное окно приложения
     private ExecutorService executorService = Executors.newFixedThreadPool(4);
 
 
@@ -145,11 +146,7 @@ public class DedicatedHostGUI extends Application {
 
         // also, add "+ chat button" above the scrollable list
         Button addChat = new Button("+ chat");
-        addChat.setOnMouseClicked(mouseEvent -> {
-            generateStringInputPrompt("New chat", "Enter chat name",
-                    "chat #" + activeChats.size(),
-                    this::switchToChat);
-        });
+        addChat.setOnMouseClicked(mouseEvent -> this.addChatPrompt());
         // add them to VBox and then to hBoxChatAndMsg:
         VBox groupAddChatAndChats = new VBox();
         groupAddChatAndChats.setMinWidth(CHAT_SELECTION_WIDTH);
@@ -175,7 +172,7 @@ public class DedicatedHostGUI extends Application {
         inputTextArea.setPrefRowCount(4);
         inputTextArea.setOnKeyPressed(keyEvent ->  {
             if (keyEvent.getCode() == KeyCode.ENTER)  {
-                if (keyEvent.isShiftDown()) {
+                if (keyEvent.isShiftDown() ^ keyEvent.isControlDown()) {
                     inputTextArea.appendText("\n");
                 } else {
                     sendMessage(); // отправляем сообщение, когда нажали Enter в поле ввода
@@ -273,7 +270,7 @@ public class DedicatedHostGUI extends Application {
         Stage newWindow = new Stage();
         newWindow.setTitle(title);
         newWindow.setScene(secondScene);
-        newWindow.initModality(Modality.WINDOW_MODAL);
+        newWindow.initModality(Modality.APPLICATION_MODAL);
 
         // Set position of second window, related to primary window.
         newWindow.show();
@@ -308,7 +305,12 @@ public class DedicatedHostGUI extends Application {
         Stage newWindow = new Stage();
         newWindow.setTitle(title);
         newWindow.setScene(secondScene);
-        newWindow.initModality(Modality.APPLICATION_MODAL);
+        newWindow.initModality(Modality.WINDOW_MODAL);
+
+        // Specifies the owner Window (parent) for new window
+        newWindow.initOwner(primaryStage);
+        newWindow.setX(primaryStage.getX() + primaryStage.getWidth() / 2 - 150);
+        newWindow.setY(primaryStage.getY() + primaryStage.getHeight() / 2 - 150);
 
         okButton.setOnMouseClicked(mouseEvent -> {
             resultConsumer.accept(textInput.getText());
@@ -318,6 +320,15 @@ public class DedicatedHostGUI extends Application {
 
         // Set position of second window, related to primary window.
         newWindow.show();
+    }
+
+    /**
+     * Данный метод порождает окошко, в котором можно ввести имя для нового чата
+     */
+    private void addChatPrompt() {
+        generateStringInputPrompt("New chat", "Enter chat name",
+                "chat #" + (activeChats.size() + 1),
+                this::switchToChat);
     }
 
     /**
@@ -391,11 +402,13 @@ public class DedicatedHostGUI extends Application {
 
     @Override
     public void start(Stage primaryStage) {
+        this.primaryStage = primaryStage;
+
         primaryStage.setTitle("SD chat [free licence]");
         primaryStage.show();
 
         if (rootScene == null) {
-            rootScene= initScene();
+            rootScene = initScene();
         }
 
         // finally, add scene to window
@@ -403,6 +416,9 @@ public class DedicatedHostGUI extends Application {
         primaryStage.setMinHeight(MIN_WINDOW_HEIGHT);
         primaryStage.setMinWidth(MIN_WINDOW_WIDTH);
         primaryStage.setScene(scene);
+
+        // begin with prompting the chat name
+        addChatPrompt();
     }
 
     @Override

@@ -38,6 +38,9 @@ public class Message implements Serializable, com.ifs.Message {
     }
 
     public String toString() {
+        if (message.trim().contains("\n")) {
+            return " [" + dateTime.format(formatter) + "] "  + author + ":\n" + message;
+        }
         return " [" + dateTime.format(formatter) + "] "  + author + ": " + message;
     }
 
