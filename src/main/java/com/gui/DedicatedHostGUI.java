@@ -377,10 +377,11 @@ public class DedicatedHostGUI extends Application {
             return; // ничего не отправляем, если ничего не введено
         }
 
-        boolean success = sendMessage(messageText);
+        boolean success = sendMessage(messageText.trim());
 
         if (success) {
             inputTextArea.setText("");
+            inputTextArea.positionCaret(0);
         }
     }
 
