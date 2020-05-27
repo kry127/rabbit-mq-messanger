@@ -236,7 +236,7 @@ public class DedicatedHostGUI extends Application {
          * @param message добавляемое сообщение в чате
          */
         public void addMessage(Message message) {
-            history.addFirst(message);
+            history.addLast(message);
         }
 
         /**
@@ -246,10 +246,10 @@ public class DedicatedHostGUI extends Application {
             StringBuilder sb = new StringBuilder();
             for (Message m : history) {
                 sb.append(m);
-                sb.append('\n');
             }
             outputTextArea.setBackground(normalBackground);
             outputTextArea.setText(sb.toString());
+            outputTextArea.positionCaret(sb.length());
         }
     }
 
