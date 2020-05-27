@@ -1,88 +1,111 @@
 package com.gui;
 
-import com.rabbitmq.client.Connection;
+import com.ChatImpl;
+import com.MessageReceiverImpl;
+import com.ifs.Chat;
+import com.ifs.Message;
+import com.ifs.MessageReceiver;
 import com.rabbitmq.client.ConnectionFactory;
 import javafx.application.Application;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
+import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
-import javafx.scene.text.Font;
-import javafx.scene.text.FontWeight;
-import javafx.scene.text.Text;
+import javafx.stage.Modality;
 import javafx.stage.Stage;
 
-import java.awt.event.KeyEvent;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
-import java.util.concurrent.TimeoutException;
+import java.time.ZonedDateTime;
+import java.util.Optional;
+import java.util.concurrent.*;
+import java.util.function.Consumer;
 
+
+/**
+ * Класс описывает запускаемое JavaFX десктопное приложение, которое служит клиентом для
+ * обмена сообщений на сервере RabbitMQ
+ */
 public class DedicatedHostGUI extends Application {
 
     private final Background errorBackground = new Background(
-            new BackgroundFill(Color.MEDIUMVIOLETRED, new CornerRadii(3.0), Insets.EMPTY));
+            new BackgroundFill(Color.INDIANRED, new CornerRadii(3.0), Insets.EMPTY));
     private final Background normalBackground = new Background(
             new BackgroundFill(Color.WHITE, new CornerRadii(3.0), Insets.EMPTY));
 
-
     /**
-     * Describes established connection
+     * Описание фабрики, по которой будет устанавливаться соединение
      */
     private ConnectionFactory factory = new ConnectionFactory();
 
-    String username;
-    private final String RABBITMQ_AUTHENTICATION_USERNAME = "guest";
+    /**
+     * Для подключения к серверу используется ссылка, в которой закодированы логин и пароль
+     */
     private final String CONNECTION_URI =
         "amqp://zavmsusv:llWnY9bP_iVXSdvhuaNd_WJoexursdVi@fish.rmq.cloudamqp.com/zavmsusv";
-    private TextArea outputTextArea;
-    private TextArea inputTextArea;
-    private TextField usernameField;
 
+    private TextArea outputTextArea; // Поле текстового вывода. Обновляется автоматически, это и есть поле чата
+    private TextArea inputTextArea;  // В данное поле пользователь вводит своё сообщение
+    private TextField usernameField; // Это поле с именем пользователя, которое будет использовано для отправки сообщ.
+
+    /**
+     * Храним отображение имён чата на их дескрипторы. Дескриптор чата хранит:
+     *  1. имя чата
+     *  2. сам объект типа Chat
+     *  3. GUI-объект типа ссылка
+     *  4. Историю сообщений
+     *
+     * Все объекты такого типа единообразно хранятся в этой коллекции
+     */
+    private final ConcurrentMap<String, ChatGuiDescriptor> activeChats;
+
+    private MessageReceiver receiver; // получатель сообщений во всех открытых чатах (каждый в отдельном потоке)
+    private ChatGuiDescriptor currentChatDescriptor; // описание текущего чата
+    private VBox scrollableTopics; // контейнер ссылок, закреплённых за дескриптором чата
+    private Parent rootScene; // корневой элемент для отображаемого графического интерфейса
+    private ExecutorService executorService = Executors.newFixedThreadPool(4);
+
+
+    /**
+     * Конструктор класса. Выполняет инициализацию важных полей, а также инициализацию окна приложения
+     * @throws NoSuchAlgorithmException
+     * @throws KeyManagementException
+     * @throws URISyntaxException
+     */
     public DedicatedHostGUI() throws NoSuchAlgorithmException, KeyManagementException, URISyntaxException {
-        factory.setUsername(RABBITMQ_AUTHENTICATION_USERNAME); // not provided username!!
+        activeChats = new ConcurrentHashMap<>();
+
         factory.setUri(CONNECTION_URI);
+        factory.setRequestedHeartbeat(30);
+        factory.setConnectionTimeout(30000);
+
+        receiver = new MessageReceiverImpl((chatId, message) -> {
+            if (activeChats.containsKey(chatId)) {
+                activeChats.get(chatId).addMessage(message);
+                if (chatId != null && chatId.equals(currentChatDescriptor.getName())) {
+                    outputTextArea.appendText(message + "\n");
+                }
+            }
+        });
+
+        rootScene = initScene();
     }
 
 
-    public static void main(String[] args) {
-        launch(args);
-    }
-
-    private boolean canConnect() {
-        boolean connected = false;
-        try {
-            Connection connection = factory.newConnection();
-            connected = true;
-            connection.close();
-        } catch (IOException | TimeoutException ex) {
-            connected = false; // connection not established
-        }
-        return connected;
-    }
-
-    private void submitText() {
-
-        String messageText = inputTextArea.getText();
-        String userName = usernameField.getText();
-
-        // do your thing...
-
-        // clear text
-        inputTextArea.setText("");
-    }
-
-    @Override
-    public void start(Stage primaryStage) {
-        primaryStage.setTitle("SD chat [free licence]");
-        primaryStage.show();
-
+    /**
+     * Инициализация всей структуры графического интерфейса. Самый <b>страшный</b> и <b>запутанный</b> метод...
+     *
+     * @return родитель сцены
+     */
+    private Parent initScene() {
         // add vBox panel as main panel
         VBox vBox = new VBox();
 
@@ -93,6 +116,7 @@ public class DedicatedHostGUI extends Application {
 
         // add username input box
         Label userName = new Label("User name:");
+        userName.setPadding(new Insets(5, 20, 5, 10));
         userNameBox.getChildren().add(userName);
 
         usernameField = new TextField("Timofey Bryksin");
@@ -110,38 +134,256 @@ public class DedicatedHostGUI extends Application {
         vBox.getChildren().add(hBoxChatAndMsg);
 
         // 2.1 add topics scroll
-        VBox scrollableTopics = new VBox();
+        scrollableTopics = new VBox();
         scrollableTopics.setPrefWidth(150.0);
-        ObservableList<Node> children = scrollableTopics.getChildren();
-        for (int i = 0; i < 20; i++) {
-            children.add(new Label("Topic " + (i + 1)));
-        }
         ScrollPane sp = new ScrollPane(scrollableTopics);
         sp.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
-        hBoxChatAndMsg.getChildren().add(sp);
+
+        // also, add "+ chat button" above the scrollable list
+        Button addChat = new Button("+ chat");
+        addChat.setOnMouseClicked(mouseEvent -> {
+            generateStringInputPrompt("New chat", "Enter chat name",
+                    "chat #" + activeChats.size(),
+                    this::switchToChat);
+        });
+        // add them to VBox and then to hBoxChatAndMsg:
+        VBox groupAddChatAndChats = new VBox();
+        groupAddChatAndChats.getChildren().add(addChat);
+        groupAddChatAndChats.getChildren().add(sp);
+
+        addChat.prefWidthProperty().bind(groupAddChatAndChats.widthProperty());
+
+        hBoxChatAndMsg.getChildren().add(groupAddChatAndChats);
 
         // 2.2 add messaging part -- box for output messages
         outputTextArea = new TextArea();
         outputTextArea.setEditable(false);
+        outputTextArea.setWrapText(true);
         hBoxChatAndMsg.getChildren().add(outputTextArea);
 
         // 3. finally, add text area with submit button
         inputTextArea = new TextArea();
         inputTextArea.setPadding(new Insets(5, 0, 0, 0));
+        inputTextArea.setWrapText(true);
         inputTextArea.setOnKeyPressed(keyEvent ->  {
-                if (keyEvent.getCode() == KeyCode.ENTER)  {
-                    submitText();
-                }
+            if (keyEvent.getCode() == KeyCode.ENTER)  {
+                sendMessage(); // отправляем сообщение, когда нажали Enter в поле ввода
+            }
         });
         vBox.getChildren().add(inputTextArea);
 
         Button submitButton = new Button("Submit");
         submitButton.prefWidthProperty().bind(vBox.widthProperty());
+        submitButton.setOnMouseClicked(e->this.sendMessage());
+
         vBox.getChildren().add(submitButton);
 
+        return vBox;
+    }
+
+    /**
+     * Внутренний класс описывает чат, а также некоторые его
+     * важные характеристики -- его имя, по которому происходит его
+     * идентификация, а также GUI элемент в левой части меню,
+     * который в точности отвечает за выданный дескриптор
+     */
+    private class ChatGuiDescriptor {
+        private String name; // имя чата
+        private Chat chat; // объект типа Chat
+        private Hyperlink guiHyperlink; // ссылка на элемент интерфейса слева в боковой панели
+
+        ConcurrentLinkedDeque<Message> history; // известная история сообщений в этом чате
+
+        /**
+         * Конструируется объект типа чат с заданным именем. Не рекомендуется создавать
+         * более одного объекта подобного вида для одного и того же имени, поскольку
+         * имя chatName должно уникально идентифицировать объект.
+         * @param chatName имя чата, которому присваивается дескриптор
+         * @throws IOException
+         * @throws TimeoutException
+         */
+        public ChatGuiDescriptor(String chatName) throws IOException, TimeoutException {
+            name = chatName;
+            this.chat = new ChatImpl(chatName, receiver, factory, executorService);
+            guiHyperlink = new Hyperlink(chatName);
+            guiHyperlink.setOnMouseClicked(event-> switchToChat(name));
+            history = new ConcurrentLinkedDeque<>();
+        }
+
+        public String getName() {
+            return name;
+        }
+
+        public Chat getChat() {
+            return chat;
+        }
+
+        public Hyperlink getGuiHyperlink() {
+            return guiHyperlink;
+        }
+
+        /**
+         * Добавляет сообщение к текущему чату
+         * @param message добавляемое сообщение в чате
+         */
+        public void addMessage(Message message) {
+            history.addFirst(message);
+        }
+
+        /**
+         * Метод позволяет обновить историю сообщений в окне вывода исходя из своей истории сообщений
+         */
+        public void restoreMessages() {
+            StringBuilder sb = new StringBuilder();
+            for (Message m : history) {
+                sb.append(m);
+                sb.append('\n');
+            }
+            outputTextArea.setBackground(normalBackground);
+            outputTextArea.setText(sb.toString());
+        }
+    }
+
+    /**
+     * Данный метод порождает окошко с сообщением об ошибке
+     * @param title Заголовок окошка
+     * @param error Текст ошибки
+     */
+    private void generateErrorPrompt(String title, String error) {
+        Label errorLabel = new Label(error);
+
+        StackPane secondaryLayout = new StackPane();
+        secondaryLayout.getChildren().add(errorLabel);
+
+        Scene secondScene = new Scene(secondaryLayout, 230, 100);
+
+        // New window (Stage)
+        Stage newWindow = new Stage();
+        newWindow.setTitle(title);
+        newWindow.setScene(secondScene);
+        newWindow.initModality(Modality.WINDOW_MODAL);
+
+        // Set position of second window, related to primary window.
+        newWindow.show();
+    }
+
+    /**
+     * Данный метод порождает окошко со строковым полем ввода
+     * @param title Заголовок окошка
+     * @param prompt Текст с описанием о запрашиваемом значении от пользователя
+     * @param defaultValue Значение, оставляемое в поле ввода по умолчанию
+     * @param resultConsumer Потребитель результата ввода
+     */
+    private void generateStringInputPrompt(String title, String prompt, String defaultValue,
+                                           Consumer<String> resultConsumer) {
+        Label promptLabel = new Label(prompt);
+        TextField textInput = new TextField(defaultValue);
+        Button okButton = new Button("OK");
+        Button cancelButton = new Button("Cancel");
+
+        GridPane grid = new GridPane();
+        grid.setAlignment(Pos.CENTER);
+        grid.setHgap(10);
+        grid.setVgap(10);
+        grid.add(promptLabel, 0, 0, 2, 1);
+        grid.add(textInput, 0, 1, 2, 1);
+        grid.add(okButton, 0, 2);
+        grid.add(cancelButton, 1, 2);
+
+        Scene secondScene = new Scene(grid, 230, 100);
+
+        // New window (Stage)
+        Stage newWindow = new Stage();
+        newWindow.setTitle(title);
+        newWindow.setScene(secondScene);
+        newWindow.initModality(Modality.APPLICATION_MODAL);
+
+        okButton.setOnMouseClicked(mouseEvent -> {
+            resultConsumer.accept(textInput.getText());
+            newWindow.close();
+        });
+        cancelButton.setOnMouseClicked(mouseEvent -> newWindow.close());
+
+        // Set position of second window, related to primary window.
+        newWindow.show();
+    }
+
+    /**
+     * Вызов метода позволяет переключиться с одного чата на другой
+     * @param chatName имя чата, на который происходит переключение
+     */
+    private void switchToChat(String chatName) {
+        ChatGuiDescriptor cgd; // получаем дескриптор чата, на который хотим поменять текущий
+        if (!activeChats.containsKey(chatName)) {
+            try {
+                cgd = new ChatGuiDescriptor(chatName);
+            } catch (TimeoutException | IOException exception) {
+                // не удалось подключиться ...
+                generateErrorPrompt("Cannot create chat", exception.toString());
+                return; // обязательно возвращаемся из метода, чтобы не поломать интерфейс
+            }
+            activeChats.put(chatName, cgd);
+            scrollableTopics.getChildren().add(cgd.getGuiHyperlink());
+        } else {
+            cgd = activeChats.get(chatName);
+        }
+
+        // если добрались до этого момента, что смена чата произошла успешно
+        if (currentChatDescriptor != null) {
+            // отменяем покраску ссылки для старого дескриптора
+            currentChatDescriptor.getGuiHyperlink().setVisited(false);
+        }
+        // затем, обновляем текущий дескриптор
+        currentChatDescriptor = cgd;
+
+        // не забываем о том, что историю сообщений также необходимо обновить
+        cgd.restoreMessages();
+    }
+
+    /**
+     * Метод позволяет отправить сообщение в чат. Текст сообщения берётся из поля ввода,
+     * в которое пользователь осуществил ввод
+     */
+    private void sendMessage() {
+        String messageText = inputTextArea.getText();
+        if ("".equals(messageText.trim())) {
+            return; // ничего не отправляем, если ничего не введено
+        }
+
+        sendMessage(messageText);
+
+        inputTextArea.setText("");
+    }
+
+    /**
+     * Метод позволяет отправить сообщение в чат
+     * @param message отправляемое сообщение в чат
+     */
+    private void sendMessage(String message) {
+        if (currentChatDescriptor == null) {
+            outputTextArea.setText("Select chat first in the list to the left!");
+            outputTextArea.setBackground(errorBackground);
+            return;
+        }
+        currentChatDescriptor.getChat().send(new com.Message(message, usernameField.getText(), ZonedDateTime.now()));
+    }
+
+
+    public static void main(String[] args) {
+        launch(args);
+    }
+
+    @Override
+    public void start(Stage primaryStage) {
+        primaryStage.setTitle("SD chat [free licence]");
+        primaryStage.show();
+
+        if (rootScene == null) {
+            rootScene= initScene();
+        }
 
         // finally, add scene to window
-        Scene scene = new Scene(vBox, 640, 480);
+        Scene scene = new Scene(rootScene, 640, 480);
         primaryStage.setScene(scene);
 
 
