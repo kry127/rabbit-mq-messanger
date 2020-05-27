@@ -1,7 +1,7 @@
 package com.gui;
 
 import com.ChatImpl;
-import com.MessageReceiverImpl;
+import com.StatelessMessageReceiverImpl;
 import com.ifs.Chat;
 import com.ifs.Message;
 import com.ifs.MessageReceiver;
@@ -91,7 +91,7 @@ public class DedicatedHostGUI extends Application {
         factory.setRequestedHeartbeat(30);
         factory.setConnectionTimeout(30000);
 
-        receiver = new MessageReceiverImpl((chatId, message) -> {
+        receiver = new StatelessMessageReceiverImpl((chatId, message) -> {
             if (activeChats.containsKey(chatId)) {
                 activeChats.get(chatId).addMessage(message);
                 if (chatId != null && chatId.equals(currentChatDescriptor.getName())) {
@@ -259,7 +259,9 @@ public class DedicatedHostGUI extends Application {
      * @param error Текст ошибки
      */
     private void generateErrorPrompt(String title, String error) {
-        Label errorLabel = new Label(error);
+        TextArea errorLabel = new TextArea(error);
+        errorLabel.setEditable(false);
+        errorLabel.setWrapText(true);
 
         StackPane secondaryLayout = new StackPane();
         secondaryLayout.getChildren().add(errorLabel);
