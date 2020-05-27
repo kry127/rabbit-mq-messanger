@@ -53,7 +53,7 @@ public class DedicatedHostGUI extends Application {
      * Для подключения к серверу используется ссылка, в которой закодированы логин и пароль
      */
     private final String CONNECTION_URI =
-        "amqp://zavmsusv:llWnY9bP_iVXSdvhuaNd_WJoexursdVi@fish.rmq.cloudamqp.com/zavmsusv";
+        "amqp://jfndqzau:0294WZlihPnoE5GTDO-kXcpkddv_Ng3u@kangaroo.rmq.cloudamqp.com/jfndqzau";
 
     private TextArea outputTextArea; // Поле текстового вывода. Обновляется автоматически, это и есть поле чата
     private TextArea inputTextArea;  // В данное поле пользователь вводит своё сообщение

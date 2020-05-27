@@ -23,34 +23,41 @@ public class ChatImpl implements com.ifs.Chat {
     private final MessageReceiver receiver;
     private final ConnectionFactory factory;
     private final ExecutorService service;
-
+    private final Connection connection;
+    private final Channel channel;
     public ChatImpl(String chatId, MessageReceiver receiver, ConnectionFactory factory, ExecutorService service) throws IOException, TimeoutException {
         this.chatId = chatId;
         this.receiver = receiver;
         this.factory = factory;
         this.service = service;
-        Connection connection = factory.newConnection();
-            Channel channel = connection.createChannel();
-            channel.exchangeDeclare(chatId, "fanout");
-            String queueName = channel.queueDeclare().getQueue();
-            channel.queueBind(queueName, chatId, "");
-            DeliverCallback deliverCallback = (consumerTag, delivery) -> {
-                try {
-                    receiver.receive(chatId, Message.frommBytes(delivery.getBody()));
-                } catch (ClassNotFoundException e) {
-                    e.printStackTrace();
-                }
-            };
-            channel.basicConsume(queueName, true, deliverCallback, consumerTag -> { });
+        connection = factory.newConnection();
+        channel = connection.createChannel();
+        service.submit(() -> {
+            try {
+                channel.exchangeDeclare(chatId, "fanout");
+                String queueName = channel.queueDeclare().getQueue();
+                channel.queueBind(queueName, chatId, "");
+                DeliverCallback deliverCallback = (consumerTag, delivery) -> {
+                    try {
+                        receiver.receive(chatId, Message.frommBytes(delivery.getBody()));
+                    } catch (ClassNotFoundException e) {
+                        e.printStackTrace();
+                    }
+                };
+                channel.basicConsume(queueName, true, deliverCallback, consumerTag -> {
+                });
+            } catch (Exception e){
+                e.printStackTrace();
+            }
+        });
     }
 
     public Future<Optional<Exception>> send(Message message) {
         return service.submit(() -> {
-            try (Connection connection = factory.newConnection();
-                 Channel channel = connection.createChannel()) {
+            try {
                 channel.exchangeDeclare(chatId, "fanout");
                 channel.basicPublish(chatId, "", null, message.getBytes());
-            } catch (TimeoutException|IOException e) {
+            } catch (IOException e) {
                 return Optional.of(e);
             }
             return Optional.empty();
@@ -60,7 +67,7 @@ public class ChatImpl implements com.ifs.Chat {
     public static void main(String[] args) throws IOException, TimeoutException, InterruptedException, NoSuchAlgorithmException, KeyManagementException, URISyntaxException {
         ExecutorService executorService = Executors.newFixedThreadPool(4);
         ConnectionFactory factory = new ConnectionFactory();
-        factory.setUri("amqp://zavmsusv:llWnY9bP_iVXSdvhuaNd_WJoexursdVi@fish.rmq.cloudamqp.com/zavmsusv");
+        factory.setUri("amqp://jfndqzau:0294WZlihPnoE5GTDO-kXcpkddv_Ng3u@kangaroo.rmq.cloudamqp.com/jfndqzau");
         factory.setRequestedHeartbeat(30);
         factory.setConnectionTimeout(30000);
         MessageReceiverImpl receiver = new MessageReceiverImpl((c, r) -> {});
