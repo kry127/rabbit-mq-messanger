@@ -96,6 +96,7 @@ public class DedicatedHostGUI extends Application {
                 activeChats.get(chatId).addMessage(message);
                 if (chatId != null && chatId.equals(currentChatDescriptor.getName())) {
                     outputTextArea.appendText(String.valueOf(message));
+                    outputTextArea.appendText(System.lineSeparator());
                 }
             }
         });
