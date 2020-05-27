@@ -7,10 +7,8 @@ import com.ifs.Message;
 import com.ifs.MessageReceiver;
 import com.rabbitmq.client.ConnectionFactory;
 import javafx.application.Application;
-import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
@@ -25,7 +23,6 @@ import java.net.URISyntaxException;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.time.ZonedDateTime;
-import java.util.Optional;
 import java.util.concurrent.*;
 import java.util.function.Consumer;
 
@@ -35,6 +32,12 @@ import java.util.function.Consumer;
  * обмена сообщений на сервере RabbitMQ
  */
 public class DedicatedHostGUI extends Application {
+
+    private static final double CHAT_SELECTION_WIDTH = 165;
+    private static final double MIN_WINDOW_WIDTH = 525;
+    private static final double MIN_WINDOW_HEIGHT = 320;
+    private static final double INITIAL_WINDOW_WIDTH = 640;
+    private static final double INITIAL_WINDOW_HEIGHT = 480;
 
     private final Background errorBackground = new Background(
             new BackgroundFill(Color.INDIANRED, new CornerRadii(3.0), Insets.EMPTY));
@@ -91,7 +94,7 @@ public class DedicatedHostGUI extends Application {
             if (activeChats.containsKey(chatId)) {
                 activeChats.get(chatId).addMessage(message);
                 if (chatId != null && chatId.equals(currentChatDescriptor.getName())) {
-                    outputTextArea.appendText(message + "\n");
+                    outputTextArea.appendText(String.valueOf(message));
                 }
             }
         });
@@ -138,6 +141,7 @@ public class DedicatedHostGUI extends Application {
         scrollableTopics.setPrefWidth(150.0);
         ScrollPane sp = new ScrollPane(scrollableTopics);
         sp.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        VBox.setVgrow(sp, Priority.ALWAYS);
 
         // also, add "+ chat button" above the scrollable list
         Button addChat = new Button("+ chat");
@@ -148,8 +152,9 @@ public class DedicatedHostGUI extends Application {
         });
         // add them to VBox and then to hBoxChatAndMsg:
         VBox groupAddChatAndChats = new VBox();
-        groupAddChatAndChats.getChildren().add(addChat);
-        groupAddChatAndChats.getChildren().add(sp);
+        groupAddChatAndChats.setMinWidth(CHAT_SELECTION_WIDTH);
+        groupAddChatAndChats.setMaxWidth(CHAT_SELECTION_WIDTH);
+        groupAddChatAndChats.getChildren().addAll(addChat, sp);
 
         addChat.prefWidthProperty().bind(groupAddChatAndChats.widthProperty());
 
@@ -159,15 +164,22 @@ public class DedicatedHostGUI extends Application {
         outputTextArea = new TextArea();
         outputTextArea.setEditable(false);
         outputTextArea.setWrapText(true);
+        HBox.setHgrow(outputTextArea, Priority.ALWAYS);
         hBoxChatAndMsg.getChildren().add(outputTextArea);
+        VBox.setVgrow(hBoxChatAndMsg, Priority.ALWAYS);
 
         // 3. finally, add text area with submit button
         inputTextArea = new TextArea();
         inputTextArea.setPadding(new Insets(5, 0, 0, 0));
         inputTextArea.setWrapText(true);
+        inputTextArea.setPrefRowCount(4);
         inputTextArea.setOnKeyPressed(keyEvent ->  {
             if (keyEvent.getCode() == KeyCode.ENTER)  {
-                sendMessage(); // отправляем сообщение, когда нажали Enter в поле ввода
+                if (keyEvent.isShiftDown()) {
+                    inputTextArea.appendText("\n");
+                } else {
+                    sendMessage(); // отправляем сообщение, когда нажали Enter в поле ввода
+                }
             }
         });
         vBox.getChildren().add(inputTextArea);
@@ -335,6 +347,7 @@ public class DedicatedHostGUI extends Application {
         }
         // затем, обновляем текущий дескриптор
         currentChatDescriptor = cgd;
+        currentChatDescriptor.getGuiHyperlink().setVisited(true);
 
         // не забываем о том, что историю сообщений также необходимо обновить
         cgd.restoreMessages();
@@ -350,22 +363,25 @@ public class DedicatedHostGUI extends Application {
             return; // ничего не отправляем, если ничего не введено
         }
 
-        sendMessage(messageText);
+        boolean success = sendMessage(messageText);
 
-        inputTextArea.setText("");
+        if (success) {
+            inputTextArea.setText("");
+        }
     }
 
     /**
      * Метод позволяет отправить сообщение в чат
      * @param message отправляемое сообщение в чат
      */
-    private void sendMessage(String message) {
+    private boolean sendMessage(String message) {
         if (currentChatDescriptor == null) {
             outputTextArea.setText("Select chat first in the list to the left!");
             outputTextArea.setBackground(errorBackground);
-            return;
+            return false;
         }
         currentChatDescriptor.getChat().send(new com.Message(message, usernameField.getText(), ZonedDateTime.now()));
+        return true;
     }
 
 
@@ -383,9 +399,15 @@ public class DedicatedHostGUI extends Application {
         }
 
         // finally, add scene to window
-        Scene scene = new Scene(rootScene, 640, 480);
+        Scene scene = new Scene(rootScene, INITIAL_WINDOW_WIDTH, INITIAL_WINDOW_HEIGHT);
+        primaryStage.setMinHeight(MIN_WINDOW_HEIGHT);
+        primaryStage.setMinWidth(MIN_WINDOW_WIDTH);
         primaryStage.setScene(scene);
+    }
 
-
+    @Override
+    public void stop() throws Exception {
+        activeChats.clear();
+        System.exit(0);
     }
 }
